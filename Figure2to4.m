@@ -93,34 +93,46 @@ result = gurobi(model);
 selected_studies_full = result.x;
 
 % table of results
+% ordering based on sample size at large budget
+[~, s_order] = sort(budget_grid_n_opt_pw(:, end));
+[~, b_order] = sort(budget_grid(budget_plot_points));
 % sample sizes
-budget_grid_n_opt_pw(:, budget_plot_points)
-n_opt_uncon .* selected_studies_full
+b1b3b4_n = round(budget_grid_n_opt_pw(s_order, budget_plot_points(b_order)));
+b3star_n = n_opt_uncon .* selected_studies_full;
+round(b3star_n(s_order))
 
 % budget used
-budget_used = c * budget_grid_n_opt_pw(:, budget_plot_points) 
+budget_used = c * budget_grid_n_opt_pw(:, budget_plot_points);
+budget_used(b_order)
 
 % budget left over
-budget_grid(:, budget_plot_points) - budget_used
+blo = round((budget_grid(:, budget_plot_points)/1e6 - budget_used), 1);
+blo(b_order)
 
 % budget left over for whole studies
 budget_used_selected = c * (n_opt_uncon .* selected_studies_full)
-budget_grid(budget_plot_points(3)) - budget_used_selected
 
 % enbs values for each solution
 enbs_values_plot_points = zeros(1, length(budget_plot_points));
 for i = 1:length(budget_plot_points)
     enbs_values_plot_points(1, i) = enbs_analytical_n(budget_grid_n_opt_pw(:, budget_plot_points(i))); 
 end
-
+round(-enbs_values_plot_points(b_order)/1e6, 1)
 % enbs for whole studies
-enbs_analytical_n(n_opt_uncon .* selected_studies_full)
 
 % optimal solution if using the same used up budget for whole studies
 n_opt_whole_budget = piecewise_solver(n_studies, evsi_analytical_ns, c, budget_used_selected, n_pieces, n_u_bnd);
+round(n_opt_whole_budget(s_order))
 budget_used_selected - c * n_opt_whole_budget % none remaining
 % 
-enbs_analytical_n(n_opt_whole_budget)
+round(enbs_analytical_n(n_opt_whole_budget)/1e6, 1)
+
+%put all sample sizes together like table
+table_ss = round([b1b3b4_n(:, 1) round(n_opt_whole_budget(s_order)) b1b3b4_n(:, 2:end) b3star_n(s_order)]);
+% put all budget spent together
+table_budget_spent = round([budget_used(:, b_order(1)) c * n_opt_whole_budget budget_used(:, b_order(2:end)) budget_used_selected]./1e6, 1);
+% put all enbs together
+table_enbs = round([-enbs_values_plot_points(:, b_order(1)) -enbs_analytical_n(n_opt_whole_budget) -enbs_values_plot_points(:, b_order(2:end)) -enbs_analytical_n(b3star_n)]./1e6, 1)
 
 % shadow prices
 % we know that fifth study is always non-zero
@@ -153,9 +165,6 @@ end
 
 
 % plots
-% ordering based on sample size at large budget
-[~, s_order] = sort(budget_grid_n_opt_pw(:, end));
-
 cm_g = gray(10);
 cm = lines(n_studies);
 
